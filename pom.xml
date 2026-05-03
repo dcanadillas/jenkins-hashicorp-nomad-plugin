@@ -15,14 +15,14 @@
 
   <name>HashiCorp Nomad Plugin</name>
   <description>Provision ephemeral Jenkins agents as Nomad jobs.</description>
-  <url>https://github.com/dcanadillas/hashicorp-nomad-plugin</url>
+  <url>https://github.com/dcanadillas/jenkins-hashicorp-nomad-plugin</url>
 
   <properties>
     <revision>0.1.0</revision>
     <changelist></changelist>
     <jenkins.baseline>2.479</jenkins.baseline>
     <jenkins.version>${jenkins.baseline}.3</jenkins.version>
-    <gitHubRepo>dcanadillas/hashicorp-nomad-plugin</gitHubRepo>
+    <gitHubRepo>dcanadillas/jenkins-hashicorp-nomad-plugin</gitHubRepo>
     <maven.compiler.release>17</maven.compiler.release>
     <spotbugs.skip>true</spotbugs.skip>
   </properties>
