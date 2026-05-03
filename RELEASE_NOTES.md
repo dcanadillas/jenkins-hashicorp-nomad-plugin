@@ -1,3 +1,25 @@
+# v0.1.1 – Sidecar Runtime Compatibility
+
+Stability and compatibility release focused on sidecar task behavior for real-world pipelines (including Kaniko-style workflows).
+
+## Highlights
+
+- Sidecar task user now renders as UID `0` (instead of `root`) to avoid image failures where `/etc/passwd` has no `root` entry
+- Added optional sidecar TTY support via `ttyEnabled` in `NomadContainerTemplate`
+- When `ttyEnabled` is set, Nomad Docker task config renders `tty: true` and `interactive: true`
+- Cloud/template copy logic now preserves `ttyEnabled`
+- Updated docs and tests to reflect runtime behavior and template isolation rules
+
+## Why this release
+
+- Improves compatibility with hardened/minimal container images
+- Enables Kubernetes-like interactive sidecar patterns used by tools such as Kaniko wrappers
+
+## Source
+
+- Repository: <https://github.com/dcanadillas/jenkins-hashicorp-nomad-plugin>
+- Tag: `v0.1.1`
+
 # v0.1.0 – Initial Release
 
 First public release of the Jenkins plugin for provisioning ephemeral Jenkins agents on HashiCorp Nomad, with support for sidecar container execution in Pipelines.
