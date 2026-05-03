@@ -50,7 +50,7 @@ public final class NomadJobBuilder {
         String workspaceVolume = "alloc:" + escape(template.getWorkspaceDir());
         String jnlpTask = "          {\n"
                 + "            \"Name\": \"jnlp\",\n"
-                + "            \"User\": \"root\",\n"
+                + "            \"User\": \"0\",\n"
                 + "            \"Driver\": \"docker\",\n"
                 + "            \"Config\": {\n"
                 + "              \"image\": \"" + escape(template.getImage()) + "\"," + commandLine + "\n"
@@ -85,12 +85,15 @@ public final class NomadJobBuilder {
                     String sidecarCommand = sidecarCommandValue == null
                             ? ""
                             : "\n              \"command\": \"" + escape(sidecarCommandValue) + "\",";
+                    String sidecarTtyConfig = container.isTtyEnabled()
+                            ? "\n              \"tty\": true,\n              \"interactive\": true,"
+                            : "";
                     return "          {\n"
                             + "            \"Name\": \"" + escape(container.getName()) + "\",\n"
-                            + "            \"User\": \"root\",\n"
+                            + "            \"User\": \"0\",\n"
                             + "            \"Driver\": \"docker\",\n"
                             + "            \"Config\": {\n"
-                            + "              \"image\": \"" + escape(container.getImage()) + "\"," + sidecarCommand + "\n"
+                            + "              \"image\": \"" + escape(container.getImage()) + "\"," + sidecarCommand + sidecarTtyConfig + "\n"
                             + "              \"args\": " + sidecarArgs + ",\n"
                             + "              \"volumes\": [\"" + workspaceVolume + "\"]\n"
                             + "            },\n"

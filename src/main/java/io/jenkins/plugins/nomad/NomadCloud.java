@@ -260,6 +260,7 @@ public class NomadCloud extends Cloud {
         copied.setArgs(source.getArgs());
         copied.setCpu(source.getCpu());
         copied.setMemoryMb(source.getMemoryMb());
+        copied.setTtyEnabled(source.isTtyEnabled());
         return copied;
     }
 

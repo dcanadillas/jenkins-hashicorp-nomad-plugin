@@ -30,7 +30,7 @@ The plugin currently works best with Docker-based Nomad tasks and Jenkins inboun
 - The Nomad task group always contains a `jnlp` task.
 - Additional sidecar tasks can be added from the UI or from pipeline DSL.
 - The workspace defaults to `/tmp/jenkins-agent` and is mounted into all tasks.
-- Tasks are currently rendered with `User: root` to avoid common shared-workspace permission issues.
+- Tasks are rendered with `User: 0` to preserve shared-workspace compatibility without relying on a `root` username entry in the image passwd file.
 - `nomadContainer(...)` uses the Nomad WebSocket exec API and does **not** require a local `nomad` CLI on Jenkins.
 
 ## Jenkins configuration
@@ -65,6 +65,7 @@ Each Nomad cloud can have one or more agent templates.
 - **Workspace Dir**: Shared workspace path, default `/tmp/jenkins-agent`
 - **CPU / Memory**: Resource settings for the `jnlp` task
 - **Containers**: Optional sidecar task definitions
+- **Sidecar TTY**: Set `ttyEnabled` for sidecars that require interactive/TTY behavior (for example `command: '/busybox/cat'` on kaniko debug images)
 
 ## Authentication and ACLs
 

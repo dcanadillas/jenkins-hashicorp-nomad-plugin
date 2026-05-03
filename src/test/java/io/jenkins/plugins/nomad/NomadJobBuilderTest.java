@@ -35,7 +35,7 @@ public class NomadJobBuilderTest {
         assertTrue(payload.contains("\"args\": [\"secret-123\", \"nomad-agent-1\"]"));
         assertTrue(payload.contains("\"volumes\": [\"alloc:/tmp/jenkins-agent\"]"));
         assertTrue(payload.contains("\"Name\": \"jnlp\""));
-        assertTrue(payload.contains("\"User\": \"root\""));
+        assertTrue(payload.contains("\"User\": \"0\""));
         assertTrue(payload.contains("\"CPU\": 1500"));
         assertTrue(payload.contains("\"MemoryMB\": 2048"));
     }
@@ -74,7 +74,7 @@ public class NomadJobBuilderTest {
         assertTrue(payload.contains("\"Name\": \"jnlp\""));
         assertTrue(payload.contains("\"Name\": \"maven\""));
         assertTrue(payload.contains("\"image\": \"maven:3.9-eclipse-temurin-21\""));
-        assertTrue(payload.contains("\"Name\": \"maven\",\n            \"User\": \"root\""));
+        assertTrue(payload.contains("\"Name\": \"maven\",\n            \"User\": \"0\""));
         assertTrue(payload.contains("\"args\": [\"sleep\", \"infinity\"]"));
         assertTrue(payload.contains("\"CPU\": 700"));
         assertTrue(payload.contains("\"MemoryMB\": 1024"));
@@ -116,5 +116,24 @@ public class NomadJobBuilderTest {
         assertTrue(payload.contains("\"Name\": \"maven\""));
         assertTrue(payload.contains("\"command\": \"/bin/sh\""));
         assertTrue(payload.contains("\"args\": [\"-lc\", \"while\", \"true;\", \"do\", \"sleep\", \"30;\", \"done\"]"));
+    }
+
+    @Test
+    public void rendersTtyAndInteractiveForSidecarWhenEnabled() throws Exception {
+        NomadCloud cloud = new NomadCloud("nomad");
+        cloud.setJenkinsUrl("http://jenkins.example/");
+
+        NomadAgentTemplate template = new NomadAgentTemplate("nomad", "jenkins/inbound-agent:jdk21");
+        NomadContainerTemplate kaniko = new NomadContainerTemplate("kaniko", "gcr.io/kaniko-project/executor:debug");
+        kaniko.setCommand("/busybox/cat");
+        kaniko.setTtyEnabled(true);
+        template.setContainers(List.of(kaniko));
+
+        NomadAgent agent = new NomadAgent("nomad-agent-tty", cloud, template, "nomad");
+        String payload = NomadJobBuilder.buildJob(cloud, agent, template, "secret-abc", "nomad-agent-tty");
+
+        assertTrue(payload.contains("\"Name\": \"kaniko\""));
+        assertTrue(payload.contains("\"tty\": true"));
+        assertTrue(payload.contains("\"interactive\": true"));
     }
 }
