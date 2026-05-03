@@ -1,0 +1,33 @@
+{
+  "Job": {
+    "ID": "jenkins-agent-example",
+    "Name": "jenkins-agent-example",
+    "Type": "batch",
+    "Datacenters": ["dc1"],
+    "TaskGroups": [
+      {
+        "Name": "agent",
+        "Count": 1,
+        "Tasks": [
+          {
+            "Name": "jnlp",
+            "Driver": "docker",
+            "Config": {
+              "image": "jenkins/inbound-agent:jdk21",
+              "args": ["\$(JENKINS_SECRET)", "\$(JENKINS_NAME)"]
+            },
+            "Env": {
+              "JENKINS_URL": "http://jenkins.service.consul:8080/",
+              "JENKINS_NAME": "agent-example",
+              "JENKINS_SECRET": "replace-me"
+            },
+            "Resources": {
+              "CPU": 1000,
+              "MemoryMB": 1024
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,36 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
+  <f:entry title="Label" field="label">
+    <f:textbox />
+  </f:entry>
+  <f:entry title="Image" field="image">
+    <f:textbox />
+  </f:entry>
+  <f:entry title="Datacenters" field="datacenters">
+    <f:textbox />
+  </f:entry>
+  <f:entry title="Namespace" field="namespace">
+    <f:textbox />
+  </f:entry>
+  <f:entry title="Command" field="command">
+    <f:textbox />
+  </f:entry>
+  <f:entry title="Arguments" field="args">
+    <f:textbox />
+  </f:entry>
+  <f:entry title="Workspace Directory" field="workspaceDir">
+    <f:textbox />
+  </f:entry>
+  <f:entry title="CPU" field="cpu">
+    <f:number />
+  </f:entry>
+  <f:entry title="Memory (MB)" field="memoryMb">
+    <f:number />
+  </f:entry>
+  <f:entry title="Instance Cap" field="instanceCap">
+    <f:number />
+  </f:entry>
+  <f:entry title="Sidecar Containers" field="containers">
+    <f:repeatableProperty field="containers" />
+  </f:entry>
+</j:jelly>

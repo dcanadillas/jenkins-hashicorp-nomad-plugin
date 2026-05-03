@@ -1,0 +1,4 @@
+<?jelly escape-by-default='true'?>
+<div>
+  Provisions ephemeral Jenkins agents as Nomad jobs.
+</div>

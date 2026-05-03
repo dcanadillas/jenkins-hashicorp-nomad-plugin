@@ -1,0 +1,51 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
+  <f:section title="Nomad Cloud">
+    <f:entry title="Name" field="name">
+      <f:textbox />
+    </f:entry>
+    <f:entry title="Nomad Address" field="nomadAddress">
+      <f:textbox />
+    </f:entry>
+    <f:entry title="Region" field="region">
+      <f:textbox />
+    </f:entry>
+    <f:entry title="Namespace" field="namespace">
+      <f:textbox />
+    </f:entry>
+    <f:entry title="Datacenters" field="datacenters">
+      <f:textbox />
+    </f:entry>
+    <f:entry title="Jenkins URL" field="jenkinsUrl">
+      <f:textbox />
+    </f:entry>
+    <f:entry title="Authentication Mode" field="authMode">
+      <f:select />
+    </f:entry>
+    <f:entry title="ACL Token Credentials ID (for ACL_TOKEN mode)" field="aclTokenCredentialsId">
+      <f:select />
+    </f:entry>
+    <f:entry title="Workload Identity Audience" field="workloadIdentityAudience">
+      <f:textbox />
+    </f:entry>
+    <f:entry
+        title="Skip TLS Verify (equivalent to NOMAD_SKIP_VERIFY=true)"
+        description="Disables certificate and hostname verification for HTTPS Nomad API calls. Use only for self-signed environments."
+        field="skipTlsVerify">
+      <f:checkbox />
+    </f:entry>
+    <f:entry title="Test Connection">
+      <f:validateButton
+          title="Test Connection"
+          progress="Testing..."
+          method="testConnection"
+          with="nomadAddress,region,namespace,authMode,aclTokenCredentialsId,skipTlsVerify" />
+    </f:entry>
+    <f:entry title="Use WebSocket" field="useWebSocket">
+      <f:checkbox />
+    </f:entry>
+    <f:entry title="Templates" field="templates">
+      <f:repeatableProperty field="templates" />
+    </f:entry>
+  </f:section>
+</j:jelly>
