@@ -389,3 +389,9 @@ export PATH="$JAVA_HOME/bin:$PATH"
 - Prefer Jenkins WebSocket inbound connections where possible
 - Keep generated Nomad jobs ephemeral and uniquely named per agent
 - Keep changes focused on Nomad job submission, allocation lifecycle, and container execution semantics
+
+## License
+
+This project is licensed under the MIT License.
+
+See `LICENSE` for details.
