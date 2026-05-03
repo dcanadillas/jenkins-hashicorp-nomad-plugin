@@ -17,6 +17,14 @@
   <description>Provision ephemeral Jenkins agents as Nomad jobs.</description>
   <url>https://github.com/dcanadillas/jenkins-hashicorp-nomad-plugin</url>
 
+  <licenses>
+    <license>
+      <name>MIT License</name>
+      <url>https://opensource.org/license/mit/</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
   <properties>
     <revision>0.1.0</revision>
     <changelist></changelist>
