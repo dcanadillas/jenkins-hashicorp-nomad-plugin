@@ -19,6 +19,7 @@ public class NomadContainerTemplate extends AbstractDescribableImpl<NomadContain
     private String args;
     private int cpu = 500;
     private int memoryMb = 512;
+    private boolean ttyEnabled;
 
     @DataBoundConstructor
     public NomadContainerTemplate(String name, String image) {
@@ -72,6 +73,15 @@ public class NomadContainerTemplate extends AbstractDescribableImpl<NomadContain
     @DataBoundSetter
     public void setMemoryMb(int memoryMb) {
         this.memoryMb = Math.max(memoryMb, 128);
+    }
+
+    public boolean isTtyEnabled() {
+        return ttyEnabled;
+    }
+
+    @DataBoundSetter
+    public void setTtyEnabled(boolean ttyEnabled) {
+        this.ttyEnabled = ttyEnabled;
     }
 
     @Extension

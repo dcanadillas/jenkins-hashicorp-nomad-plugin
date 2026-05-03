@@ -105,7 +105,7 @@ public class NomadCloudTest {
     }
 
     @Test
-    public void resolveProvisioningTemplateFallsBackToMostRecentScopedContainers() {
+    public void resolveProvisioningTemplateDoesNotUseScopedContainersFromDifferentLabels() {
         NomadPipelineContext.clearTemplateScopesForTests();
 
         NomadCloud cloud = new NomadCloud("nomad");
@@ -118,8 +118,7 @@ public class NomadCloudTest {
 
         NomadAgentTemplate resolved = cloud.resolveProvisioningTemplate(Label.get("nomad"));
 
-        assertEquals(1, resolved.getContainers().size());
-        assertEquals("maven", resolved.getContainers().get(0).getName());
+        assertEquals(0, resolved.getContainers().size());
 
         NomadPipelineContext.unregisterTemplateScope("different-label", scopeId);
     }

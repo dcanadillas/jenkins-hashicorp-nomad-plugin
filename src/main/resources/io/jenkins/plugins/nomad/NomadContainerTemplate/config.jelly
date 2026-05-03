@@ -18,6 +18,9 @@
   <f:entry title="Memory (MB)" field="memoryMb">
     <f:number />
   </f:entry>
+  <f:entry title="Enable TTY (interactive)" field="ttyEnabled">
+    <f:checkbox />
+  </f:entry>
   <f:entry>
     <f:repeatableDeleteButton />
   </f:entry>
