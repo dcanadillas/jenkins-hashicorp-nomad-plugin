@@ -1,3 +1,25 @@
+# v0.1.2 – Sidecar Entrypoint Support
+
+Compatibility release focused on sidecar startup behavior for images with fixed entrypoints (such as Kaniko).
+
+## Highlights
+
+- Added `entrypoint` to `NomadContainerTemplate` (Pipeline DSL and Jenkins UI)
+- Sidecar Docker config now renders `entrypoint: ["..."]` when provided
+- `NomadCloud` template copy/merge now preserves sidecar `entrypoint`
+- Updated Kaniko guidance: use `entrypoint: '/busybox/cat'` with `ttyEnabled: true` (instead of `command`)
+- Added/updated tests for entrypoint + TTY rendering behavior
+
+## Why this release
+
+- Fixes errors like `unknown command "/busybox/cat" for "executor"` in Kaniko debug images
+- Enables Kubernetes-style sidecar keepalive patterns by overriding Docker entrypoint explicitly
+
+## Source
+
+- Repository: <https://github.com/dcanadillas/jenkins-hashicorp-nomad-plugin>
+- Tag: `v0.1.2`
+
 # v0.1.1 – Sidecar Runtime Compatibility
 
 Stability and compatibility release focused on sidecar task behavior for real-world pipelines (including Kaniko-style workflows).

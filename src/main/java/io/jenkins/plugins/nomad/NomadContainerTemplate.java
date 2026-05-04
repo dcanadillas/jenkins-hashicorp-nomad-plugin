@@ -15,6 +15,7 @@ public class NomadContainerTemplate extends AbstractDescribableImpl<NomadContain
 
     private final String name;
     private final String image;
+    private String entrypoint;
     private String command;
     private String args;
     private int cpu = 500;
@@ -35,6 +36,16 @@ public class NomadContainerTemplate extends AbstractDescribableImpl<NomadContain
     @CheckForNull
     public String getImage() {
         return image;
+    }
+
+    @CheckForNull
+    public String getEntrypoint() {
+        return entrypoint;
+    }
+
+    @DataBoundSetter
+    public void setEntrypoint(String entrypoint) {
+        this.entrypoint = Util.fixEmpty(entrypoint);
     }
 
     @CheckForNull

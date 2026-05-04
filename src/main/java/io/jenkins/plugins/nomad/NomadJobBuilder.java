@@ -75,13 +75,19 @@ public final class NomadJobBuilder {
                 .filter(container -> container.getName() != null && !container.getName().isBlank())
                 .filter(container -> container.getImage() != null && !container.getImage().isBlank())
                 .map(container -> {
+                    String sidecarEntrypointValue = container.getEntrypoint();
                     String sidecarCommandValue = container.getCommand();
                     String sidecarArgsValue = container.getArgs();
-                    if (Util.fixEmpty(sidecarCommandValue) == null && Util.fixEmpty(sidecarArgsValue) == null) {
+                    if (Util.fixEmpty(sidecarEntrypointValue) == null
+                            && Util.fixEmpty(sidecarCommandValue) == null
+                            && Util.fixEmpty(sidecarArgsValue) == null) {
                         sidecarCommandValue = "/bin/sh";
                         sidecarArgsValue = "-lc while true; do sleep 30; done";
                     }
                     String sidecarArgs = toArgsJson(sidecarArgsValue);
+                    String sidecarEntrypoint = sidecarEntrypointValue == null
+                            ? ""
+                            : "\n              \"entrypoint\": [\"" + escape(sidecarEntrypointValue) + "\"],";
                     String sidecarCommand = sidecarCommandValue == null
                             ? ""
                             : "\n              \"command\": \"" + escape(sidecarCommandValue) + "\",";
@@ -93,7 +99,7 @@ public final class NomadJobBuilder {
                             + "            \"User\": \"0\",\n"
                             + "            \"Driver\": \"docker\",\n"
                             + "            \"Config\": {\n"
-                            + "              \"image\": \"" + escape(container.getImage()) + "\"," + sidecarCommand + sidecarTtyConfig + "\n"
+                            + "              \"image\": \"" + escape(container.getImage()) + "\"," + sidecarEntrypoint + sidecarCommand + sidecarTtyConfig + "\n"
                             + "              \"args\": " + sidecarArgs + ",\n"
                             + "              \"volumes\": [\"" + workspaceVolume + "\"]\n"
                             + "            },\n"

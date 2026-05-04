@@ -65,7 +65,7 @@ Each Nomad cloud can have one or more agent templates.
 - **Workspace Dir**: Shared workspace path, default `/tmp/jenkins-agent`
 - **CPU / Memory**: Resource settings for the `jnlp` task
 - **Containers**: Optional sidecar task definitions
-- **Sidecar TTY**: Set `ttyEnabled` for sidecars that require interactive/TTY behavior (for example `command: '/busybox/cat'` on kaniko debug images)
+- **Sidecar TTY**: Set `ttyEnabled` for sidecars that require interactive/TTY behavior; for kaniko debug images use `entrypoint: '/busybox/cat'` (not `command`) so Docker entrypoint is correctly overridden
 
 ## Authentication and ACLs
 
