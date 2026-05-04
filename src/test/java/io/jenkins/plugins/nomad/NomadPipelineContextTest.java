@@ -54,4 +54,21 @@ public class NomadPipelineContextTest {
         NomadPipelineContext.unregisterTemplateScope("nomad", scopeA);
         NomadPipelineContext.unregisterTemplateScope("nomad-tools", scopeB);
     }
+
+    @Test
+    public void createsUniqueEffectiveLabelPerScope() {
+        NomadPipelineContext.clearTemplateScopesForTests();
+
+        String scopeId = NomadPipelineContext.registerTemplateScope(
+                "nomad",
+                List.of(new NomadContainerTemplate("python", "python:3.12")));
+
+        String effectiveLabel = NomadPipelineContext.getEffectiveLabel(scopeId);
+
+        assertTrue(effectiveLabel.startsWith("nomad-"));
+        assertEquals("nomad", NomadPipelineContext.resolveBaseLabel(effectiveLabel));
+        assertEquals(1, NomadPipelineContext.getCurrentContainersForLabel(effectiveLabel).size());
+
+        NomadPipelineContext.unregisterTemplateScope("nomad", scopeId);
+    }
 }

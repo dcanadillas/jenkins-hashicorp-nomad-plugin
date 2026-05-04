@@ -46,6 +46,12 @@ job "jenkins-agent" {
   }
 
   stages {
+    stage('Context') {
+      steps {
+        sh 'echo "NOMAD_TEMPLATE_LABEL=$NOMAD_TEMPLATE_LABEL BASE_LABEL=$NOMAD_TEMPLATE_BASE_LABEL"'
+      }
+    }
+
     stage('Build') {
       steps {
         nomadContainer('maven') {

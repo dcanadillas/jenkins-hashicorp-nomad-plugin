@@ -30,6 +30,7 @@ The plugin currently works best with Docker-based Nomad tasks and Jenkins inboun
 - The Nomad task group always contains a `jnlp` task.
 - Additional sidecar tasks can be added from the UI or from pipeline DSL.
 - The workspace defaults to `/tmp/jenkins-agent` and is mounted into all tasks.
+- Shared workspace volumes are rendered as `${NOMAD_ALLOC_DIR}:<workspaceDir>` for consistent task-to-task visibility.
 - Tasks are rendered with `User: 0` to preserve shared-workspace compatibility without relying on a `root` username entry in the image passwd file.
 - `nomadContainer(...)` uses the Nomad WebSocket exec API and does **not** require a local `nomad` CLI on Jenkins.
 
@@ -120,7 +121,7 @@ nomadTemplate(
 		[$class: 'NomadContainerTemplate', name: 'shell', image: 'busybox:1.36', command: 'sleep', args: 'infinity']
 	]
 ) {
-	node('nomad') {
+	node(env.NOMAD_TEMPLATE_LABEL) {
 		nomadContainer('shell') {
 			sh 'echo "ACTIVE=$NOMAD_ACTIVE_CONTAINER"; uname -a; echo hello from sidecar'
 		}
@@ -148,7 +149,7 @@ pipeline {
 						[$class: 'NomadContainerTemplate', name: 'shell', image: 'busybox:1.36', command: 'sleep', args: 'infinity']
 					]
 				) {
-					node('nomad') {
+					node(env.NOMAD_TEMPLATE_LABEL) {
 						nomadContainer('shell') {
 							sh 'echo "ACTIVE=$NOMAD_ACTIVE_CONTAINER"; uname -a; echo hello from sidecar'
 						}
@@ -169,7 +170,12 @@ Reference examples are available in:
 
 ### Declarative with top-level stages (container per stage)
 
-If you want separate top-level Declarative stages with one container per stage, wrap each stage body in `nomadTemplate(...) { node('nomad') { ... } }`.
+If you want separate top-level Declarative stages with one container per stage, wrap each stage body in `nomadTemplate(...) { node(env.NOMAD_TEMPLATE_LABEL) { ... } }`.
+
+`nomadTemplate(...)` now exports:
+
+- `NOMAD_TEMPLATE_LABEL`: unique per-scope label to force Jenkins to provision a fresh Nomad job
+- `NOMAD_TEMPLATE_BASE_LABEL`: original template label from Jenkins configuration
 
 See: `examples/Jenkinsfile.declarative.stages.nomad`.
 
@@ -182,6 +188,8 @@ See: `examples/Jenkinsfile.declarative.global-agent.nomad`.
 ### Declarative pipeline-level Nomad agent (podTemplate-like)
 
 You can define the Nomad template at pipeline agent level:
+
+When using this declarative agent-level form, the plugin automatically uses the generated per-scope label internally (equivalent to `node(env.NOMAD_TEMPLATE_LABEL)`), so a fresh Nomad job is provisioned for the scoped pipeline run.
 
 ```groovy
 pipeline {
@@ -294,13 +302,13 @@ Note: true Declarative root-level template syntax (for example a custom `agent {
 
 ### Important label rule
 
-Keep the `nomadTemplate(label: ...)` value aligned with the label used in `node('...')` and with the label available from the Jenkins UI template.
+For `nomadTemplate(...)` blocks, keep the `label` aligned with your Jenkins UI base template label, and use `node(env.NOMAD_TEMPLATE_LABEL)` inside the block.
 
 Good:
 
 ```groovy
 nomadTemplate(label: 'nomad', containers: [ ... ]) {
-	node('nomad') {
+	node(env.NOMAD_TEMPLATE_LABEL) {
 		nomadContainer('shell') {
 			sh 'echo test'
 		}
@@ -308,7 +316,7 @@ nomadTemplate(label: 'nomad', containers: [ ... ]) {
 }
 ```
 
-Avoid mixing labels such as `nomadTemplate(label: 'nomad-tools')` with `node('nomad')` unless you intentionally understand how the backing UI template and pipeline scope are being matched.
+Avoid hardcoding `node('nomad')` inside a `nomadTemplate(...)` block when you expect build-isolated sidecars.
 
 ### Sidecars defined in UI
 
@@ -329,6 +337,24 @@ You can also define sidecars directly in the Jenkins cloud template configuratio
 - uses the Nomad exec API to run the requested shell command inside the named sidecar task
 - creates the requested workspace directory path before `cd` when needed
 - streams stdout/stderr back into the Jenkins build log
+
+## Runtime tuning
+
+The plugin supports runtime tuning through JVM system properties for environments with slow first-run image pulls.
+
+- `io.jenkins.plugins.nomad.taskStartTimeoutSeconds` (default: `600`)
+	- Controls how long `nomadContainer(...)` waits for the sidecar task to reach running state.
+- `io.jenkins.plugins.nomad.durableScriptWaitSeconds` (default: `180`)
+	- Controls how long the durable script launcher waits for script files to become visible in sidecar execution.
+
+Example Jenkins controller JVM options:
+
+```bash
+-Dio.jenkins.plugins.nomad.taskStartTimeoutSeconds=900
+-Dio.jenkins.plugins.nomad.durableScriptWaitSeconds=300
+```
+
+These settings are especially useful when the first build after a clean node has to pull large images.
 
 ## Debugging
 

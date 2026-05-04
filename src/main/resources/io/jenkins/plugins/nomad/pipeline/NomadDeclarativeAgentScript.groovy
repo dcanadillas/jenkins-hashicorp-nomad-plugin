@@ -15,7 +15,8 @@ class NomadDeclarativeAgentScript extends DeclarativeAgentScript2<NomadDeclarati
         def resolvedLabel = describable.getLabel() ?: 'nomad'
 
         script.nomadTemplate(args) {
-            script.node(resolvedLabel) {
+            def effectiveLabel = script.env?.NOMAD_TEMPLATE_LABEL ?: resolvedLabel
+            script.node(effectiveLabel) {
                 CheckoutScript.doCheckout2(script, describable, null) {
                     body.call()
                 }

@@ -13,7 +13,7 @@ pipeline {
               [$class: 'NomadContainerTemplate', name: 'shell',  image: 'busybox:1.36',                   command: 'sleep', args: 'infinity']
             ]
           ) {
-            node('nomad') {
+            node(env.NOMAD_TEMPLATE_LABEL) {
               stage('Build') {
                 nomadContainer('maven') {
                   sh 'echo "No checkout required"; mvn -v || true'

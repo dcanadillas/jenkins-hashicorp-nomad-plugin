@@ -162,7 +162,8 @@ public class NomadCloud extends Cloud {
         if (label == null) {
             return !getTemplates().isEmpty();
         }
-        return getTemplates().stream().anyMatch(template -> template.matchesLabel(label.getExpression()));
+        String requestedLabel = NomadPipelineContext.resolveBaseLabel(label.getExpression());
+        return getTemplates().stream().anyMatch(template -> template.matchesLabel(requestedLabel));
     }
 
     @NonNull
@@ -197,8 +198,9 @@ public class NomadCloud extends Cloud {
         if (label == null) {
             return getTemplates().get(0);
         }
+        String requestedLabel = NomadPipelineContext.resolveBaseLabel(label.getExpression());
         return getTemplates().stream()
-                .filter(template -> template.matchesLabel(label.getExpression()))
+                .filter(template -> template.matchesLabel(requestedLabel))
                 .findFirst()
                 .orElse(null);
     }

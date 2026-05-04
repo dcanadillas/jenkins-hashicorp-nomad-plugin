@@ -1,3 +1,31 @@
+# v0.1.3 – Runtime Stability and Pipeline Isolation
+
+Stability release focused on first-run reliability, pipeline scope isolation, and sidecar workspace consistency for real-world Nomad + Kaniko workflows.
+
+## Highlights
+
+- Added per-scope effective label handling (`NOMAD_TEMPLATE_LABEL`) to prevent cross-build agent/sidecar reuse
+- Declarative pipeline-level Nomad agent now resolves and uses generated effective labels automatically
+- Improved durable-task execution path in `nomadContainer(...)` for sidecar command startup reliability
+- Added workspace/working-directory normalization for sidecar exec commands
+- Ensured `jnlp` arguments include `-workDir <workspaceDir>` when not explicitly provided
+- Updated task volume mapping to use `${NOMAD_ALLOC_DIR}:<workspaceDir>` for stronger shared-workspace behavior across tasks
+- Added configurable durable script wait tuning for first-run image pull latency:
+  - `io.jenkins.plugins.nomad.durableScriptWaitSeconds` (default `180`)
+- Retained existing task startup timeout tuning:
+  - `io.jenkins.plugins.nomad.taskStartTimeoutSeconds` (default `600`)
+- Updated examples and README to the final recommended isolation pattern (`node(env.NOMAD_TEMPLATE_LABEL)`)
+
+## Why this release
+
+- Addresses "first run fails, second run passes" behavior commonly seen when sidecar images are pulled on demand
+- Prevents accidental reuse of stale agents that do not include expected scoped sidecars
+- Improves sidecar compatibility for Kaniko and similar tool images in mixed Scripted/Declarative pipelines
+
+## Source
+
+- Repository: <https://github.com/dcanadillas/jenkins-hashicorp-nomad-plugin>
+- Tag: `v0.1.3`
 # v0.1.2 – Sidecar Entrypoint Support
 
 Compatibility release focused on sidecar startup behavior for images with fixed entrypoints (such as Kaniko).

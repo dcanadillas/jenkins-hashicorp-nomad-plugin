@@ -37,9 +37,19 @@ import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import jenkins.model.Jenkins;
 
+/**
+ * Bridges Jenkins process launches into Nomad sidecar tasks when running inside a
+ * {@code nomadContainer(...)} scope.
+ */
 public class NomadContainerExecDecorator extends LauncherDecorator implements Serializable {
     private static final long serialVersionUID = 1L;
     private static final Logger LOGGER = Logger.getLogger(NomadContainerExecDecorator.class.getName());
+    private static final String TASK_START_TIMEOUT_SECONDS_PROPERTY = "io.jenkins.plugins.nomad.taskStartTimeoutSeconds";
+    private static final long DEFAULT_TASK_START_TIMEOUT_SECONDS = 600L;
+    // Wait budget for durable script files to appear in sidecars during first-run image pulls.
+    private static final String DURABLE_SCRIPT_WAIT_SECONDS_PROPERTY = "io.jenkins.plugins.nomad.durableScriptWaitSeconds";
+    private static final long DEFAULT_DURABLE_SCRIPT_WAIT_SECONDS = 180L;
+    private static final long DURABLE_SCRIPT_WAIT_POLL_MILLIS = 50L;
     private static final Pattern STDOUT_DATA_PATTERN = Pattern.compile("\"stdout\"\\s*:\\s*\\{[^}]*\"data\"\\s*:\\s*\"([^\"]*)\"");
     private static final Pattern STDERR_DATA_PATTERN = Pattern.compile("\"stderr\"\\s*:\\s*\\{[^}]*\"data\"\\s*:\\s*\"([^\"]*)\"");
     private static final Pattern EXIT_CODE_PATTERN = Pattern.compile("\"exit_code\"\\s*:\\s*(-?\\d+)");
@@ -103,6 +113,7 @@ public class NomadContainerExecDecorator extends LauncherDecorator implements Se
                 waitForTaskToBeRunning(cloud, allocation.id(), containerName, stdout);
 
                 LOGGER.info("[nomadContainer] command argv=" + command);
+                // Durable-task shells provide script/log/result paths; detect them to run a compact remote runner.
                 String durableDir = findDurableDir(command);
                 if (durableDir != null) {
                     LOGGER.info("[nomadContainer] durable dir detected: " + durableDir);
@@ -120,6 +131,10 @@ public class NomadContainerExecDecorator extends LauncherDecorator implements Se
                     command = buildDetachedDurableRunnerCommand(command, durableDir, containerName);
                     LOGGER.info("[nomadContainer] using compact durable runner command");
                 }
+                // Normalize workspace and CWD exported to the sidecar so Jenkins and container paths stay aligned.
+                String workspacePath = resolveWorkspacePath(starter, durableDir);
+                String workingDirPath = resolveWorkingDirectoryPath(starter);
+                command = withExportedEnvironment(command, starter.envs(), workspacePath, workingDirPath);
                 Proc proc = launchExecOverWebSocket(
                         cloud, allocation.id(), allocation.nodeId(), containerName, command, stdout, stderr, true);
                 if (durableDir != null) {
@@ -195,6 +210,7 @@ public class NomadContainerExecDecorator extends LauncherDecorator implements Se
         String scriptPath = durableDir + "/script.sh";
         String scriptCopyPath = durableDir + "/script.sh.copy";
         String marker = durableDir + "/jenkins-log.txt";
+        long durableScriptWaitAttempts = resolveDurableScriptWaitAttempts();
         String command;
         if (scriptBase64 != null && !scriptBase64.isBlank()) {
             command = "mkdir -p \"" + durableDir + "\""
@@ -204,7 +220,7 @@ public class NomadContainerExecDecorator extends LauncherDecorator implements Se
         } else {
             command = "mkdir -p \"" + durableDir + "\""
                     + " && i=0"
-                    + " && while [ $i -lt 200 ] && [ ! -f \"" + scriptPath + "\" ]; do i=$((i+1)); sleep 0.05; done"
+                + " && while [ $i -lt " + durableScriptWaitAttempts + " ] && [ ! -f \"" + scriptPath + "\" ]; do i=$((i+1)); sleep 0.05; done"
                     + " && [ -f \"" + scriptPath + "\" ]"
                     + " && cp \"" + scriptPath + "\" \"" + scriptCopyPath + "\""
                     + " && : >> \"" + marker + "\"";
@@ -252,11 +268,13 @@ public class NomadContainerExecDecorator extends LauncherDecorator implements Se
 
     private static List<String> buildDetachedDurableRunnerCommand(
             List<String> originalCommand, String durableDir, String activeContainerName) {
+        String scriptPath = durableDir + "/script.sh";
         String scriptCopyPath = durableDir + "/script.sh.copy";
         String logPath = durableDir + "/jenkins-log.txt";
         String resultTmpPath = durableDir + "/jenkins-result.txt.tmp";
         String resultPath = durableDir + "/jenkins-result.txt";
         String serverCookie = findDurableCookie(originalCommand);
+        long durableScriptWaitAttempts = resolveDurableScriptWaitAttempts();
 
         StringBuilder command = new StringBuilder();
         if (serverCookie != null && !serverCookie.isBlank()) {
@@ -271,7 +289,37 @@ public class NomadContainerExecDecorator extends LauncherDecorator implements Se
                 .append(shellSingleQuote(activeContainerName))
                 .append("; ");
         }
-        command.append("sh -xe ")
+        command.append("mkdir -p ")
+            .append(shellSingleQuote(durableDir))
+            .append("; if [ ! -f ")
+            .append(shellSingleQuote(scriptCopyPath))
+            .append(" ]; then i=0; while [ $i -lt ")
+            .append(durableScriptWaitAttempts)
+            .append(" ] && [ ! -f ")
+            .append(shellSingleQuote(scriptCopyPath))
+            .append(" ] && [ ! -f ")
+            .append(shellSingleQuote(scriptPath))
+            .append(" ]; do i=$((i+1)); sleep 0.05; done; if [ ! -f ")
+            .append(shellSingleQuote(scriptCopyPath))
+            .append(" ] && [ -f ")
+            .append(shellSingleQuote(scriptPath))
+            .append(" ]; then cp ")
+            .append(shellSingleQuote(scriptPath))
+            .append(" ")
+            .append(shellSingleQuote(scriptCopyPath))
+            .append("; fi; fi; if [ ! -f ")
+            .append(shellSingleQuote(scriptCopyPath))
+            .append(" ]; then echo 'durable script unavailable' > ")
+            .append(shellSingleQuote(logPath))
+            .append(" 2>&1; code=1; echo $code > ")
+            .append(shellSingleQuote(resultTmpPath))
+            .append("; mv ")
+            .append(shellSingleQuote(resultTmpPath))
+            .append(" ")
+            .append(shellSingleQuote(resultPath))
+            .append("; cat ")
+            .append(shellSingleQuote(logPath))
+            .append("; exit $code; fi; sh -xe ")
             .append(shellSingleQuote(scriptCopyPath))
             .append(" > ")
             .append(shellSingleQuote(logPath))
@@ -297,7 +345,11 @@ public class NomadContainerExecDecorator extends LauncherDecorator implements Se
             return;
         }
 
-        long timeoutMs = Duration.ofSeconds(90).toMillis();
+        long timeoutSeconds = Long.getLong(TASK_START_TIMEOUT_SECONDS_PROPERTY, DEFAULT_TASK_START_TIMEOUT_SECONDS);
+        if (timeoutSeconds <= 0) {
+            timeoutSeconds = DEFAULT_TASK_START_TIMEOUT_SECONDS;
+        }
+        long timeoutMs = Duration.ofSeconds(timeoutSeconds).toMillis();
         long pollMs = 500L;
         long deadline = System.currentTimeMillis() + timeoutMs;
         int attempt = 0;
@@ -345,11 +397,141 @@ public class NomadContainerExecDecorator extends LauncherDecorator implements Se
         return matcher.find() ? matcher.group(1) : null;
     }
 
+    private static long resolveDurableScriptWaitAttempts() {
+        // Translate wait seconds to polling attempts used by shell loops.
+        long waitSeconds = Long.getLong(DURABLE_SCRIPT_WAIT_SECONDS_PROPERTY, DEFAULT_DURABLE_SCRIPT_WAIT_SECONDS);
+        if (waitSeconds <= 0) {
+            waitSeconds = DEFAULT_DURABLE_SCRIPT_WAIT_SECONDS;
+        }
+        return Math.max(1L, Duration.ofSeconds(waitSeconds).toMillis() / DURABLE_SCRIPT_WAIT_POLL_MILLIS);
+    }
+
     private static String shellSingleQuote(String value) {
         if (value == null) {
             return "''";
         }
         return "'" + value.replace("'", "'\"'\"'") + "'";
+    }
+
+    private static List<String> withExportedEnvironment(
+            List<String> command,
+            String[] envEntries,
+            String workspacePath,
+            String workingDirPath) {
+        if (command == null || command.isEmpty()) {
+            return command;
+        }
+
+        String prefix = buildWorkingDirectoryPrefix(workingDirPath) + buildExportPrefix(envEntries, workspacePath, workingDirPath);
+        if (prefix.isBlank()) {
+            return command;
+        }
+
+        String shellCommand = command.stream()
+                .map(NomadContainerExecDecorator::shellSingleQuote)
+                .collect(Collectors.joining(" "));
+        return List.of("/bin/sh", "-lc", prefix + "exec " + shellCommand);
+    }
+
+    private static String buildExportPrefix(String[] envEntries, String workspacePath, String workingDirPath) {
+        StringBuilder exports = new StringBuilder();
+        if (envEntries != null) {
+            for (String entry : envEntries) {
+                if (entry == null || entry.isBlank()) {
+                    continue;
+                }
+                int separator = entry.indexOf('=');
+                if (separator <= 0) {
+                    continue;
+                }
+                String name = entry.substring(0, separator);
+                if (!name.matches("[A-Za-z_][A-Za-z0-9_]*")) {
+                    continue;
+                }
+                if ("PATH".equals(name) || "WORKSPACE".equals(name) || "WORKSPACE_TMP".equals(name)) {
+                    continue;
+                }
+                String value = entry.substring(separator + 1);
+                exports.append("export ")
+                        .append(name)
+                        .append('=')
+                        .append(shellSingleQuote(value))
+                        .append("; ");
+            }
+        }
+
+        String normalizedWorkspacePath = workspacePath == null || workspacePath.isBlank() ? null : workspacePath;
+        String normalizedWorkingDirPath = workingDirPath == null || workingDirPath.isBlank() ? null : workingDirPath;
+        if (normalizedWorkspacePath != null || normalizedWorkingDirPath != null) {
+            if (normalizedWorkspacePath != null
+                    && (normalizedWorkingDirPath == null || normalizedWorkspacePath.equals(normalizedWorkingDirPath))) {
+                exports.append("if [ -d ")
+                        .append(shellSingleQuote(normalizedWorkspacePath))
+                        .append(" ]; then export WORKSPACE=")
+                        .append(shellSingleQuote(normalizedWorkspacePath))
+                        .append("; else export WORKSPACE=\"$(pwd)\"; fi; ");
+            } else if (normalizedWorkspacePath == null) {
+                exports.append("if [ -d ")
+                        .append(shellSingleQuote(normalizedWorkingDirPath))
+                        .append(" ]; then export WORKSPACE=")
+                        .append(shellSingleQuote(normalizedWorkingDirPath))
+                        .append("; else export WORKSPACE=\"$(pwd)\"; fi; ");
+            } else {
+                exports.append("if [ -d ")
+                        .append(shellSingleQuote(normalizedWorkspacePath))
+                        .append(" ]; then export WORKSPACE=")
+                        .append(shellSingleQuote(normalizedWorkspacePath))
+                        .append("; elif [ -d ")
+                        .append(shellSingleQuote(normalizedWorkingDirPath))
+                        .append(" ]; then export WORKSPACE=")
+                        .append(shellSingleQuote(normalizedWorkingDirPath))
+                        .append("; else export WORKSPACE=\"$(pwd)\"; fi; ");
+            }
+            exports.append("export WORKSPACE_TMP=\"${WORKSPACE}@tmp\"; ");
+        }
+        return exports.toString();
+    }
+
+    private static String buildWorkingDirectoryPrefix(String workingDirPath) {
+        if (workingDirPath == null || workingDirPath.isBlank()) {
+            return "";
+        }
+        return "mkdir -p " + shellSingleQuote(workingDirPath)
+                + "; cd " + shellSingleQuote(workingDirPath)
+                + "; ";
+    }
+
+    private static String resolveWorkspacePath(Launcher.ProcStarter starter, String durableDir) {
+        String fromStarter = resolveWorkingDirectoryPath(starter);
+        if (fromStarter != null) {
+            return fromStarter;
+        }
+        String derivedFromDurable = workspaceFromDurableDir(durableDir);
+        if (derivedFromDurable != null) {
+            return derivedFromDurable;
+        }
+        if (starter == null || starter.pwd() == null) {
+            return null;
+        }
+        return starter.pwd().getRemote();
+    }
+
+    private static String resolveWorkingDirectoryPath(Launcher.ProcStarter starter) {
+        if (starter == null || starter.pwd() == null) {
+            return null;
+        }
+        return starter.pwd().getRemote();
+    }
+
+    private static String workspaceFromDurableDir(String durableDir) {
+        if (durableDir == null || durableDir.isBlank()) {
+            return null;
+        }
+        int marker = durableDir.indexOf("@tmp/");
+        if (marker <= 0) {
+            return null;
+        }
+        return durableDir.substring(0, marker);
     }
 
     private static Proc launchExecOverWebSocket(
