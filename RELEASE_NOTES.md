@@ -26,7 +26,6 @@ Stability release focused on first-run reliability, pipeline scope isolation, an
 
 - Repository: <https://github.com/dcanadillas/jenkins-hashicorp-nomad-plugin>
 - Tag: `v0.1.3`
-
 # v0.1.2 – Sidecar Entrypoint Support
 
 Compatibility release focused on sidecar startup behavior for images with fixed entrypoints (such as Kaniko).
