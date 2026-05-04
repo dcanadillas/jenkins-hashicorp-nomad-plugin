@@ -256,6 +256,7 @@ public class NomadCloud extends Cloud {
 
     private static NomadContainerTemplate copyContainer(NomadContainerTemplate source) {
         NomadContainerTemplate copied = new NomadContainerTemplate(source.getName(), source.getImage());
+        copied.setEntrypoint(source.getEntrypoint());
         copied.setCommand(source.getCommand());
         copied.setArgs(source.getArgs());
         copied.setCpu(source.getCpu());

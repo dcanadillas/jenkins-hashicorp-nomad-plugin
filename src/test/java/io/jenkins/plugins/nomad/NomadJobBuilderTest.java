@@ -125,7 +125,7 @@ public class NomadJobBuilderTest {
 
         NomadAgentTemplate template = new NomadAgentTemplate("nomad", "jenkins/inbound-agent:jdk21");
         NomadContainerTemplate kaniko = new NomadContainerTemplate("kaniko", "gcr.io/kaniko-project/executor:debug");
-        kaniko.setCommand("/busybox/cat");
+        kaniko.setEntrypoint("/busybox/cat");
         kaniko.setTtyEnabled(true);
         template.setContainers(List.of(kaniko));
 
@@ -133,7 +133,9 @@ public class NomadJobBuilderTest {
         String payload = NomadJobBuilder.buildJob(cloud, agent, template, "secret-abc", "nomad-agent-tty");
 
         assertTrue(payload.contains("\"Name\": \"kaniko\""));
+        assertTrue(payload.contains("\"entrypoint\": [\"/busybox/cat\"]"));
         assertTrue(payload.contains("\"tty\": true"));
         assertTrue(payload.contains("\"interactive\": true"));
+        assertTrue(!payload.contains("\"command\": \"/bin/sh\""));
     }
 }
