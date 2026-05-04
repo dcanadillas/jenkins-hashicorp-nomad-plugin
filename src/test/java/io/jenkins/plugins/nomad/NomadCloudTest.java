@@ -105,6 +105,31 @@ public class NomadCloudTest {
     }
 
     @Test
+    public void resolveProvisioningTemplatePreservesScopedContainerEntrypointAndTty() {
+        NomadPipelineContext.clearTemplateScopesForTests();
+
+        NomadCloud cloud = new NomadCloud("nomad");
+        NomadAgentTemplate baseTemplate = new NomadAgentTemplate("nomad", "jenkins/inbound-agent:jdk21");
+        cloud.setTemplates(java.util.List.of(baseTemplate));
+
+        NomadContainerTemplate kaniko = new NomadContainerTemplate("kaniko", "gcr.io/kaniko-project/executor:v1.23.2-debug");
+        kaniko.setEntrypoint("/busybox/cat");
+        kaniko.setTtyEnabled(true);
+
+        String scopeId = NomadPipelineContext.registerTemplateScope("nomad", java.util.List.of(kaniko));
+
+        NomadAgentTemplate resolved = cloud.resolveProvisioningTemplate(Label.get("nomad"));
+
+        assertEquals(1, resolved.getContainers().size());
+        NomadContainerTemplate resolvedKaniko = resolved.getContainers().get(0);
+        assertEquals("kaniko", resolvedKaniko.getName());
+        assertEquals("/busybox/cat", resolvedKaniko.getEntrypoint());
+        assertTrue(resolvedKaniko.isTtyEnabled());
+
+        NomadPipelineContext.unregisterTemplateScope("nomad", scopeId);
+    }
+
+    @Test
     public void resolveProvisioningTemplateDoesNotUseScopedContainersFromDifferentLabels() {
         NomadPipelineContext.clearTemplateScopesForTests();
 
@@ -121,5 +146,26 @@ public class NomadCloudTest {
         assertEquals(0, resolved.getContainers().size());
 
         NomadPipelineContext.unregisterTemplateScope("different-label", scopeId);
+    }
+
+    @Test
+    public void canProvisionScopedEffectiveLabelUsingBaseTemplate() {
+        NomadPipelineContext.clearTemplateScopesForTests();
+
+        NomadCloud cloud = new NomadCloud("nomad");
+        cloud.setTemplates(java.util.List.of(new NomadAgentTemplate("nomad", "jenkins/inbound-agent:jdk21")));
+
+        String scopeId = NomadPipelineContext.registerTemplateScope(
+                "nomad",
+                java.util.List.of(new NomadContainerTemplate("python", "python:3.12")));
+        String effectiveLabel = NomadPipelineContext.getEffectiveLabel(scopeId);
+
+        assertTrue(cloud.canProvision(new hudson.slaves.Cloud.CloudState(Label.get(effectiveLabel), 1)));
+
+        NomadAgentTemplate resolved = cloud.resolveProvisioningTemplate(Label.get(effectiveLabel));
+        assertEquals(1, resolved.getContainers().size());
+        assertEquals("python", resolved.getContainers().get(0).getName());
+
+        NomadPipelineContext.unregisterTemplateScope("nomad", scopeId);
     }
 }

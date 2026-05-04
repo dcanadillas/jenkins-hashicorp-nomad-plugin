@@ -32,8 +32,8 @@ public class NomadJobBuilderTest {
         assertTrue(payload.contains("\"JENKINS_AGENT_NAME\": \"nomad-agent-1\""));
         assertTrue(payload.contains("\"JENKINS_SECRET\": \"secret-123\""));
         assertTrue(payload.contains("\"JENKINS_AGENT_WORKDIR\": \"/tmp/jenkins-agent\""));
-        assertTrue(payload.contains("\"args\": [\"secret-123\", \"nomad-agent-1\"]"));
-        assertTrue(payload.contains("\"volumes\": [\"alloc:/tmp/jenkins-agent\"]"));
+        assertTrue(payload.contains("\"args\": [\"secret-123\", \"nomad-agent-1\", \"-workDir\", \"/tmp/jenkins-agent\"]"));
+        assertTrue(payload.contains("\"volumes\": [\"${NOMAD_ALLOC_DIR}:/tmp/jenkins-agent\"]"));
         assertTrue(payload.contains("\"Name\": \"jnlp\""));
         assertTrue(payload.contains("\"User\": \"0\""));
         assertTrue(payload.contains("\"CPU\": 1500"));
@@ -53,6 +53,22 @@ public class NomadJobBuilderTest {
 
         assertTrue(payload.contains("\"NOMAD_WORKLOAD_IDENTITY\": \"true\""));
         assertTrue(payload.contains("\"NOMAD_WORKLOAD_IDENTITY_AUDIENCE\": \"jenkins-nomad-agents\""));
+        assertTrue(payload.contains("\"args\": [\"secret-xyz\", \"nomad-agent-wi\", \"-workDir\", \"/tmp/jenkins-agent\"]"));
+    }
+
+    @Test
+    public void preservesExistingWorkDirArgumentInArgs() throws Exception {
+        NomadCloud cloud = new NomadCloud("nomad");
+        cloud.setJenkinsUrl("http://jenkins.example/");
+
+        NomadAgentTemplate template = new NomadAgentTemplate("nomad", "jenkins/inbound-agent:jdk21");
+        template.setArgs("${computer.jnlpmac} ${computer.name} -workDir /home/jenkins/agent");
+        NomadAgent agent = new NomadAgent("nomad-agent-workdir", cloud, template, "nomad");
+
+        String payload = NomadJobBuilder.buildJob(cloud, agent, template, "secret-456", "nomad-agent-workdir");
+
+        assertTrue(payload.contains("\"args\": [\"secret-456\", \"nomad-agent-workdir\", \"-workDir\", \"/home/jenkins/agent\"]"));
+        assertTrue(!payload.contains("\"/tmp/jenkins-agent\", \"-workDir\""));
     }
 
     @Test

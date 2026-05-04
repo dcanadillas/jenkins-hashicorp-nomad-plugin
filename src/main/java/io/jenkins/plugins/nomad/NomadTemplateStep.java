@@ -77,6 +77,7 @@ public class NomadTemplateStep extends Step {
             }
 
             String scopeId = NomadPipelineContext.registerTemplateScope(scopeLabel, scopedContainers);
+            String effectiveLabel = NomadPipelineContext.getEffectiveLabel(scopeId);
 
             Set<String> names = new HashSet<>();
             names.add("jnlp");
@@ -88,7 +89,9 @@ public class NomadTemplateStep extends Step {
 
             EnvironmentExpander base = getContext().get(EnvironmentExpander.class);
             EnvironmentExpander scoped = EnvironmentExpander.constant(
-                    Collections.singletonMap(NomadPipelineContext.TEMPLATE_LABEL_ENV, scopeLabel));
+                    Collections.singletonMap(NomadPipelineContext.TEMPLATE_LABEL_ENV, effectiveLabel));
+                EnvironmentExpander scopedBase = EnvironmentExpander.constant(
+                    Collections.singletonMap(NomadPipelineContext.TEMPLATE_BASE_LABEL_ENV, scopeLabel));
             EnvironmentExpander containers = EnvironmentExpander.constant(
                     Collections.singletonMap(
                             NomadPipelineContext.CONTAINER_NAMES_ENV,
@@ -96,7 +99,7 @@ public class NomadTemplateStep extends Step {
 
             getContext()
                     .newBodyInvoker()
-                    .withContext(EnvironmentExpander.merge(base, EnvironmentExpander.merge(scoped, containers)))
+                    .withContext(EnvironmentExpander.merge(base, EnvironmentExpander.merge(scopedBase, EnvironmentExpander.merge(scoped, containers))))
                     .withCallback(new ScopedContainersCleanupCallback(scopeLabel, scopeId))
                     .start();
             return false;

@@ -5,6 +5,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Renders Nomad job payloads used to provision Jenkins ephemeral agents.
+ */
 public final class NomadJobBuilder {
     private NomadJobBuilder() {}
 
@@ -30,6 +33,9 @@ public final class NomadJobBuilder {
                         .replace("${computer.jnlpmac}", jnlpSecret == null ? "" : jnlpSecret)
                         .replace("${computer.name}", agentName == null ? agent.getNodeName() : agentName);
 
+        // Keep Jenkins remoting workspace aligned with the template workspace unless user already set -workDir.
+        resolvedArgs = ensureWorkDirArgument(resolvedArgs, template.getWorkspaceDir());
+
         String args = resolvedArgs == null
                 ? "[]"
                 : "[" + Arrays.stream(resolvedArgs.split("\\s+"))
@@ -47,7 +53,8 @@ public final class NomadJobBuilder {
                         + "\""
                 : "";
 
-        String workspaceVolume = "alloc:" + escape(template.getWorkspaceDir());
+        // Mount the allocation directory explicitly to maximize cross-task workspace consistency.
+        String workspaceVolume = "${NOMAD_ALLOC_DIR}:" + escape(template.getWorkspaceDir());
         String jnlpTask = "          {\n"
                 + "            \"Name\": \"jnlp\",\n"
                 + "            \"User\": \"0\",\n"
@@ -146,4 +153,19 @@ public final class NomadJobBuilder {
     private static String escape(String value) {
         return value == null ? "" : value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
+
+        // Appends -workDir when missing so first checkout path and sidecar workspace path converge.
+        private static String ensureWorkDirArgument(String args, String workspaceDir) {
+                if (Util.fixEmpty(args) == null) {
+                        return args;
+                }
+                String normalizedWorkspaceDir = Util.fixEmptyAndTrim(workspaceDir);
+                if (normalizedWorkspaceDir == null) {
+                        return args;
+                }
+                if (args.contains("-workDir")) {
+                        return args;
+                }
+                return args + " -workDir " + normalizedWorkspaceDir;
+        }
 }
